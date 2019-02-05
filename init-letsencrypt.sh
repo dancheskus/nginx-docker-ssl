@@ -11,10 +11,12 @@ regex="([^www.].+)"
 # root required
 if [ "$EUID" -ne 0 ]; then echo "Please run $0 as root." && exit; fi
 
+clear
+
+# Menu for existing folder
 for domain in ${domains[@]}; do
-  domainName=`echo $domain | grep -o -P $regex`
-  if [ -d "$data_path/conf/live/$domainName" ]; then
-    clear
+  domain_name=`echo $domain | grep -o -P $regex`
+  if [ -d "$data_path/conf/live/$domain_name" ]; then
     echo "### Existing data found for some domains..."
     echo
     PS3='Your choice: '
@@ -41,14 +43,15 @@ if [ ! -e "$data_path/conf/options-ssl-nginx.conf" ] && [ ! -e "$data_path/conf/
   curl -s https://raw.githubusercontent.com/certbot/certbot/master/certbot/ssl-dhparams.pem > "$data_path/conf/ssl-dhparams.pem"
 fi
 
+# Dummy certificate
 for domain in ${!domains[*]}; do
-  domainSet=(${domains[$domain]})
-  domainName=`echo ${domainSet[0]} | grep -o -P $regex`
+  domain_set=(${domains[$domain]})
+  domain_name=`echo ${domain_set[0]} | grep -o -P $regex`
   
-  mkdir -p "$data_path/conf/live/$domainName"
+  mkdir -p "$data_path/conf/live/$domain_name"
 
-  echo "### Creating dummy certificate for $domainName domain..."
-  path="/etc/letsencrypt/live/$domainName"
+  echo "### Creating dummy certificate for $domain_name domain..."
+  path="/etc/letsencrypt/live/$domain_name"
   docker-compose run --rm --entrypoint "openssl req -x509 -nodes -newkey rsa:1024 \
   -days 1 -keyout '$path/privkey.pem' -out '$path/fullchain.pem' -subj '/CN=localhost'" certbot
 done
@@ -67,26 +70,26 @@ esac
 if [ $staging != "0" ]; then staging_arg="--staging"; fi
 
 for domain in ${!domains[*]}; do
-  domainSet=(${domains[$domain]})
-  domainName=`echo ${domainSet[0]} | grep -o -P $regex`
+  domain_set=(${domains[$domain]})
+  domain_name=`echo ${domain_set[0]} | grep -o -P $regex`
 
-  if [ -e "$data_path/conf/live/$domainName/cert.pem" ]; then
-    echo "Skipping $domainName domain"; else
+  if [ -e "$data_path/conf/live/$domain_name/cert.pem" ]; then
+    echo "Skipping $domain_name domain"; else
 
-    echo "### Deleting dummy certificate for $domainName domain ..."
-    rm -rf "$data_path/conf/live/$domainName"
+    echo "### Deleting dummy certificate for $domain_name domain ..."
+    rm -rf "$data_path/conf/live/$domain_name"
 
 
-    echo "### Requesting Let's Encrypt certificate for $domainName domain ..."
+    echo "### Requesting Let's Encrypt certificate for $domain_name domain ..."
 
     #Join $domains to -d args
     domain_args=""
-    for domain in "${domainSet[@]}"; do
+    for domain in "${domain_set[@]}"; do
       domain_args="$domain_args -d $domain"
     done
 
     mkdir -p "$data_path/www"
-    docker-compose run --rm --entrypoint "certbot certonly --webroot -w /var/www/certbot $domain_args \
+    docker-compose run --rm --entrypoint "certbot certonly --webroot -w /var/www/certbot --cert-name $domain_name $domain_args \
     $staging_arg $email_arg --rsa-key-size $rsa_key_size --agree-tos --force-renewal --non-interactive" certbot
   fi
 done
