@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 domains=("example.com www.example.com" "another-example.com www.another-example.com")
